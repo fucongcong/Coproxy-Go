@@ -97,9 +97,7 @@ func (http *HTTP) IoBind(dst io.ReadWriteCloser, src io.ReadWriteCloser, callbac
 		var err interface{}
 		select {
 		case err = <-e1:
-			//log.Printf("e1")
 		case err = <-e2:
-			//log.Printf("e2")
 		}
 		src.Close()
 		dst.Close()
