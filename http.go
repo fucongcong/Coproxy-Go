@@ -21,12 +21,12 @@ func (http *HTTP) OutToTCP(address string, inConn net.Conn, req *HTTPRequest) (e
 		return
 	}
 	var outConn net.Conn
-	//var _outConn interface{}
+
+	//构造连接
 	tryCount := 0
 	maxTryCount := 5
 	for {
 		outConn, err = net.DialTimeout("tcp", address, time.Duration(3000)*time.Millisecond)
-		//outConn, err = utils.ConnectHost(s.Resolve(address), *s.cfg.Timeout)
 		tryCount++
 		if err == nil || tryCount > maxTryCount {
 			break
@@ -42,9 +42,21 @@ func (http *HTTP) OutToTCP(address string, inConn net.Conn, req *HTTPRequest) (e
 	}
 
 	outAddr := outConn.RemoteAddr().String()
-	err = req.HTTPSReply()
 
-	//outLocalAddr := outConn.LocalAddr().String()
+	if req.IsHTTPS() {
+		//https无上级或者上级非代理,proxy需要响应connect请求,并直连目标
+		err = req.HTTPSReply()
+	} else {
+		//https或者http,上级是代理,proxy需要转发
+		_, err = outConn.Write(req.HeadBuf)
+		if err != nil {
+			log.Printf("write to %s , err:%s", outAddr, err)
+			inConn.Close()
+			return
+		}
+	}
+
+	//开始做数据交换
 	http.IoBind(inConn, outConn, func(err interface{}) {
 		log.Printf("conn %s - %s released [%s]", inAddr, outAddr, req.Host)
 	}) //
@@ -130,16 +142,16 @@ func (http *HTTP) IsDeadLoop(inLocalAddr string, host string) bool {
 				}
 			}
 		}
-		interfaceIPs, err := http.GetAllInterfaceAddr()
-		if err == nil {
-			for _, localIP := range interfaceIPs {
-				for _, outIP := range outIPs {
-					if localIP.Equal(outIP) {
-						return true
-					}
-				}
-			}
-		}
+		// interfaceIPs, err := http.GetAllInterfaceAddr()
+		// if err == nil {
+		// 	for _, localIP := range interfaceIPs {
+		// 		for _, outIP := range outIPs {
+		// 			if localIP.Equal(outIP) {
+		// 				return true
+		// 			}
+		// 		}
+		// 	}
+		// }
 	}
 	return false
 }

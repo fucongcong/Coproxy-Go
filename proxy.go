@@ -17,6 +17,7 @@ const (
 
 func main() {
 	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", ADDR, PORT))
+	log.Printf("start http proxy on %s:%d", ADDR, PORT)
 	if err != nil {
 		log.Printf("listen error:%s", err)
 	}
@@ -57,17 +58,17 @@ func handleConnection(conn net.Conn) (req HTTPRequest, http HTTP, err error) {
 	}
 	fmt.Sscanf(string(req.HeadBuf[:index]), "%s%s", &req.Method, &req.hostOrURL)
 	//}
-	log.Printf("%s:%s:%s", req.Method, req.Host, req.hostOrURL)
 	req.Method = strings.ToUpper(req.Method)
 	if req.IsHTTPS() {
 		err = req.HTTPS()
 	} else {
 		err = req.HTTP()
 	}
-	log.Printf("use proxy : %v, %s", false, req.Host)
+	log.Printf("%s=>%s=>%s", req.Method, req.Host, req.hostOrURL)
 	err = http.OutToTCP(req.Host, conn, &req)
 
 	if err != nil {
+		err = fmt.Errorf("http io err:%s", err)
 		conn.Close()
 	}
 
